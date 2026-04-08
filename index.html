@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LightTable — Account Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f7f5f2;--white:#ffffff;--border:#e4e0d8;--border-dark:#c8c3b8;
+  --text:#1c1a17;--text-mid:#4a4640;--text-muted:#8a857c;--text-faint:#b8b3aa;
+  --lt-red:#c0392b;--lt-red-light:#fdf0ee;--lt-red-mid:#e8b4ae;
+  --tier1:#1a6b4a;--tier1-light:#e8f5ee;--tier1-mid:#b8deca;
+  --tier2:#b05c00;--tier2-light:#fdf0e0;--tier2-mid:#f0c88a;
+  --tier3:#4a4640;--tier3-light:#f0eeeb;--tier3-mid:#c8c3b8;
+  --peer-yes:#1a6b4a;--peer-yes-bg:#e8f5ee;
+  --peer-no:#c0392b;--peer-no-bg:#fdf0ee;
+  --peer-unknown:#8a857c;--peer-unknown-bg:#f0eeeb;
+  --seg-dev:#1a4f8a;--seg-dev-bg:#e8f0fb;
+  --seg-gc:#6a1a8a;--seg-gc-bg:#f0e8fb;
+  --seg-reif:#1a6b4a;--seg-reif-bg:#e8f5ee;
+  --seg-dc:#b05c00;--seg-dc-bg:#fdf0e0;
+  --signal-pre:#1a4f8a;--signal-pre-bg:#e8f0fb;--signal-pre-mid:#a8c4e8;
+  --signal-comp:#1a6b4a;--signal-comp-bg:#e8f5ee;--signal-comp-mid:#b8deca;
+  --signal-none:#8a857c;--signal-none-bg:#f0eeeb;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
+.header{background:var(--text);color:var(--white);padding:24px 40px;display:flex;align-items:center;justify-content:space-between;}
+.header-left{display:flex;align-items:center;gap:16px;}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--white);letter-spacing:-.01em;}
+.logo span{color:var(--lt-red);}
+.header-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);}
+.header-divider{width:1px;height:32px;background:rgba(255,255,255,.15);}
+.header-stats{display:flex;gap:32px;}
+.header-stat{display:flex;flex-direction:column;gap:2px;}
+.header-stat-val{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--white);line-height:1;}
+.header-stat-lbl{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:.1em;text-transform:uppercase;}
+.refresh-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.7);font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+.refresh-btn:hover{background:rgba(255,255,255,.14);color:var(--white);}
+.refresh-btn.spinning svg{animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.page{max-width:1400px;margin:0 auto;padding:40px 40px 80px;}
+.nav{display:flex;gap:0;border-bottom:2px solid var(--text);margin-bottom:40px;}
+.nav-tab{padding:10px 22px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:var(--text-muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--text);border-bottom-color:var(--lt-red);font-weight:600;}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;}
+.filter-btn{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border-dark);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.filter-btn:hover{border-color:var(--text);color:var(--text);}
+.filter-btn.active{background:var(--text);color:var(--white);border-color:var(--text);}
+.account-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;}
+.account-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:20px;cursor:pointer;transition:box-shadow .15s,transform .15s;position:relative;overflow:hidden;}
+.account-card:hover{box-shadow:0 6px 28px rgba(0,0,0,.1);transform:translateY(-2px);}
+.account-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.account-card.tier1::before{background:var(--tier1);}
+.account-card.tier2::before{background:var(--tier2);}
+.account-card.tier3::before{background:var(--tier3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.card-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
+.card-segment{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
+.icp-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;flex-shrink:0;}
+.icp-badge.tier1{background:var(--tier1-light);color:var(--tier1);border:1px solid var(--tier1-mid);}
+.icp-badge.tier2{background:var(--tier2-light);color:var(--tier2);border:1px solid var(--tier2-mid);}
+.icp-badge.tier3{background:var(--tier3-light);color:var(--tier3);border:1px solid var(--tier3-mid);}
+.score-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.score-num{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:500;color:var(--text);line-height:1;}
+.score-denom{font-size:11px;color:var(--text-muted);}
+.score-track{flex:1;height:5px;background:var(--bg);border-radius:3px;border:1px solid var(--border);overflow:hidden;}
+.score-fill{height:100%;border-radius:3px;transition:width .4s;}
+.score-fill.tier1{background:var(--tier1);}
+.score-fill.tier2{background:var(--tier2);}
+.score-fill.tier3{background:var(--tier3);}
+.card-pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.pill{padding:2px 7px;border-radius:3px;font-size:9px;font-weight:500;border:1px solid var(--border);background:var(--bg);color:var(--text-mid);white-space:nowrap;}
+.pill.peer-yes{background:var(--peer-yes-bg);color:var(--peer-yes);border-color:var(--tier1-mid);}
+.pill.peer-unknown{background:var(--peer-unknown-bg);color:var(--peer-unknown);}
+.pill.peer-no{background:var(--peer-no-bg);color:var(--peer-no);border-color:var(--lt-red-mid);}
+.signal-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
+.signal-tag.pre-construction{background:var(--signal-pre-bg);color:var(--signal-pre);border:1px solid var(--signal-pre-mid);}
+.signal-tag.recently-completed{background:var(--signal-comp-bg);color:var(--signal-comp);border:1px solid var(--signal-comp-mid);}
+.signal-tag.no-signal{background:var(--signal-none-bg);color:var(--signal-none);border:1px solid var(--border);}
+.persona-bars{display:flex;flex-direction:column;gap:4px;padding-top:10px;border-top:1px solid var(--border);margin-top:4px;}
+.pb-row{display:flex;align-items:center;gap:8px;}
+.pb-label{font-size:9px;color:var(--text-muted);width:150px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pb-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.pb-fill{height:100%;border-radius:2px;background:var(--text);opacity:.3;}
+.pb-pct{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--text-muted);width:28px;text-align:right;flex-shrink:0;}
+.card-meta{display:flex;gap:16px;padding-top:10px;border-top:1px solid var(--border);margin-top:4px;}
+.card-meta-item{display:flex;flex-direction:column;gap:2px;}
+.card-meta-val{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:var(--text);}
+.card-meta-lbl{font-size:9px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;}
+.seg-tag{display:inline-flex;padding:3px 8px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
+.seg-tag.Developer{background:var(--seg-dev-bg);color:var(--seg-dev);}
+.seg-tag.GC{background:var(--seg-gc-bg);color:var(--seg-gc);}
+.seg-tag.REIF{background:var(--seg-reif-bg);color:var(--seg-reif);}
+.seg-tag.DC{background:var(--seg-dc-bg);color:var(--seg-dc);}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);cursor:pointer;margin-bottom:28px;border:none;background:none;padding:0;transition:color .15s;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;}
+.back-btn:hover{color:var(--text);}
+.back-btn::before{content:'←';}
+.dive-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:20px;}
+.dive-title{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;color:var(--text);line-height:1.1;}
+.dive-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:6px;}
+.dive-stats{display:flex;gap:24px;flex-wrap:wrap;}
+.dive-stat{display:flex;flex-direction:column;gap:2px;text-align:right;}
+.dive-stat-val{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--text);line-height:1;}
+.dive-stat-lbl{font-size:9px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;}
+.dive-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px;}
+@media(max-width:900px){.dive-grid{grid-template-columns:1fr;}}
+.dive-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:20px 22px;}
+.dive-card-title{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mid);margin-bottom:12px;}
+.info-row{display:flex;gap:8px;align-items:baseline;margin-bottom:7px;}
+.info-label{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);width:120px;flex-shrink:0;}
+.info-value{font-size:12px;color:var(--text-mid);line-height:1.5;}
+.peer-block{border-radius:6px;padding:14px 16px;margin-bottom:4px;}
+.peer-block.yes{background:var(--peer-yes-bg);border:1px solid var(--tier1-mid);}
+.peer-block.unknown{background:var(--peer-unknown-bg);border:1px solid var(--border);}
+.peer-block.no{background:var(--peer-no-bg);border:1px solid var(--lt-red-mid);}
+.peer-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:4px;}
+.peer-block.yes .peer-label{color:var(--tier1);}
+.peer-block.unknown .peer-label{color:var(--peer-unknown);}
+.peer-block.no .peer-label{color:var(--lt-red);}
+.peer-headline{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--text);line-height:1.3;}
+.signal-block{border-radius:6px;padding:16px 18px;}
+.signal-block.pre-construction{background:var(--signal-pre-bg);border:1px solid var(--signal-pre-mid);}
+.signal-block.recently-completed{background:var(--signal-comp-bg);border:1px solid var(--signal-comp-mid);}
+.signal-block.no-signal{background:var(--signal-none-bg);border:1px solid var(--border);}
+.signal-type-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:6px;}
+.signal-block.pre-construction .signal-type-label{color:var(--signal-pre);}
+.signal-block.recently-completed .signal-type-label{color:var(--signal-comp);}
+.signal-block.no-signal .signal-type-label{color:var(--signal-none);}
+.signal-headline{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.3;}
+.signal-detail{font-size:11px;color:var(--text-mid);line-height:1.7;}
+.tech-pills{display:flex;flex-wrap:wrap;gap:5px;}
+.tech-pill{padding:3px 9px;border-radius:3px;font-size:10px;background:var(--bg);border:1px solid var(--border-dark);color:var(--text-mid);}
+.tech-pill.procore{background:#e8f0fb;color:#1a4f8a;border-color:#a8c4e8;}
+.tech-pill.bluebeam{background:#fdf0e0;color:#b05c00;border-color:#f0c88a;}
+.tech-pill.autodesk{background:#fce8e8;color:#8a1a1a;border-color:#f4c0c0;}
+.fn-bars{display:flex;flex-direction:column;gap:6px;}
+.fn-row{display:flex;align-items:center;gap:8px;}
+.fn-label{font-size:11px;color:var(--text-mid);width:200px;flex-shrink:0;}
+.fn-track{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.fn-fill{height:100%;border-radius:3px;background:var(--text);opacity:.4;}
+.fn-pct{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text-muted);width:36px;text-align:right;flex-shrink:0;}
+.contact-block{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.contact-row{display:grid;grid-template-columns:28px 1fr 1.2fr 1fr 0.8fr auto;gap:0;align-items:center;padding:12px 14px;background:var(--white);cursor:pointer;transition:background .12s;}
+.contact-row:hover{background:#faf9f7;}
+.contact-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-faint);}
+.contact-name-cell{font-weight:600;color:var(--text);font-size:12px;display:flex;align-items:center;gap:5px;}
+.contact-title-cell{font-size:11px;color:var(--text-mid);line-height:1.4;padding:0 12px;}
+.contact-email-cell{font-size:10px;}
+.contact-email-cell a{color:var(--lt-red);text-decoration:none;}
+.contact-email-cell a:hover{text-decoration:underline;}
+.contact-loc-cell{font-size:10px;color:var(--text-muted);padding:0 12px;}
+.contact-link{color:var(--lt-red);text-decoration:none;font-size:10px;opacity:.6;transition:opacity .15s;}
+.contact-link:hover{opacity:1;}
+.toggle-msg-btn{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;border:1px solid var(--border-dark);background:var(--white);padding:4px 10px;border-radius:3px;transition:all .12s;white-space:nowrap;}
+.toggle-msg-btn:hover{color:var(--lt-red);border-color:var(--lt-red-mid);}
+.messaging-panel{background:#faf9f7;border-top:1px solid var(--border);padding:16px 16px 16px 42px;display:none;}
+.messaging-panel.open{display:block;}
+.msg-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.msg-persona-label{font-size:11px;font-weight:600;color:var(--text);}
+.msg-subject-line{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--white);border:1px solid var(--border);border-radius:3px;font-size:10px;color:var(--text-mid);font-family:'IBM Plex Mono',monospace;margin-left:auto;}
+.msg-subject-lbl{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-right:2px;}
+.msg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.msg-col-label{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
+.msg-hook{font-size:11px;color:var(--text);line-height:1.75;font-style:italic;}
+.msg-angle{font-size:11px;color:var(--text-mid);line-height:1.75;}
+.msg-avoid{font-size:11px;color:var(--lt-red);line-height:1.75;}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:14px;}
+.loading-spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite;}
+.loading-text{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);}
+.error-block{background:#fdf0ee;border:1px solid var(--lt-red-mid);border-radius:6px;padding:16px 20px;font-size:12px;color:var(--lt-red);}
+.score-table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.score-table th{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border-dark);background:var(--bg);cursor:pointer;user-select:none;white-space:nowrap;}
+.score-table th:hover{color:var(--text);}
+.score-table th.sorted{color:var(--text);}
+.score-table td{font-size:11px;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text-mid);}
+.score-table tr:last-child td{border-bottom:none;}
+.score-table tr:hover td{background:#faf9f7;cursor:pointer;}
+@media(max-width:768px){.page{padding:24px 16px 60px;}.header{padding:16px;}.dive-grid{grid-template-columns:1fr;}.msg-grid{grid-template-columns:1fr;}.contact-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="header-eyebrow">Primary Venture Partners · GTM Intelligence</div>
+      <div class="logo">Light<span>Table</span></div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-stats">
+      <div class="header-stat"><div class="header-stat-val" id="stat-accounts">—</div><div class="header-stat-lbl">Accounts</div></div>
+      <div class="header-stat"><div class="header-stat-val" id="stat-contacts">—</div><div class="header-stat-lbl">Contacts</div></div>
+      <div class="header-stat"><div class="header-stat-val" id="stat-peer">—</div><div class="header-stat-lbl">Peer Review Confirmed</div></div>
+      <div class="header-stat"><div class="header-stat-val" id="stat-tier1">—</div><div class="header-stat-lbl">Tier 1 Accounts</div></div>
+    </div>
+  </div>
+  <button class="refresh-btn" onclick="loadData()" id="refresh-btn">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    Refresh
+  </button>
+</div>
+<div class="page">
+  <div class="nav">
+    <button class="nav-tab active" onclick="showView('accounts',this)">Account Readiness</button>
+    <button class="nav-tab" onclick="showView('scorecard',this)">Scorecard</button>
+  </div>
+  <div id="view-accounts"></div>
+  <div id="view-scorecard" style="display:none"></div>
+</div>
+<script>
+const N8N_API_URL='https://primarycharles.app.n8n.cloud/webhook/LT-Data';
+let ACCOUNTS=[],CONTACTS=[],currentFilter='all',scorecardSort={key:'icp_score',dir:-1};
+
+const ACCOUNT_INTEL={
+  'Hines':{description:'Hines is one of the largest privately held real estate investment, development, and management firms in the world. Known for high-quality commercial and mixed-use developments across office, multifamily, industrial, and hospitality asset classes.',signal_type:'pre-construction',signal_headline:'Active development pipeline across multiple U.S. markets',signal_detail:'Hines has active projects in DD and CD phases across New York, Houston, and other major metros. Pre-construction coordination on large mixed-use and office projects creates significant change order exposure.'},
+  'Turner Construction':{description:'Turner Construction Company is one of the largest general contractors in the United States, specializing in commercial construction across healthcare, education, data centers, and high-rise sectors.',signal_type:'recently-completed',signal_headline:'Recently delivered major data center and healthcare projects',signal_detail:'Turner has completed large-scale data center and healthcare facility projects. As a GC carrying project risk, change orders from coordination errors directly impact their margins and client relationships.'},
+  'Tishman Speyer':{description:'Tishman Speyer is a leading global real estate developer and operator with a portfolio spanning office, multifamily, and mixed-use properties across major cities worldwide.',signal_type:'pre-construction',signal_headline:'Major office and mixed-use projects in design development',signal_detail:'Tishman Speyer is advancing several large-scale office and mixed-use projects through design development. Their Autodesk ACC adoption signals a digitally mature team open to AI-powered review workflows.'},
+  'Peachtree Group':{description:'Peachtree Group is a diversified commercial real estate investment firm focused on hospitality and multifamily assets. As an investment firm, they control capital deployment and can enforce tool adoption across their portfolio.',signal_type:'no-signal',signal_headline:'No active pre-construction signal detected',signal_detail:'No confirmed pre-construction or recently completed project signal found. Peer review status is unknown — confirm on first call. REIF segment creates opportunity for portfolio-level adoption pitch.'},
+  'Related Companies':{description:'Related Companies is one of the most prominent real estate firms in the United States, known for large-scale luxury residential and mixed-use developments including Hudson Yards in New York City.',signal_type:'pre-construction',signal_headline:'Large multifamily and mixed-use projects advancing through design phases',signal_detail:'Related has multiple multifamily and mixed-use projects advancing through DD and early CD phases. Their scale and project complexity make design coordination errors a significant source of change order risk.'}
+};
+
+const CONTACT_MESSAGING={
+  'Jim Barrett':{hook:"I noticed Turner just wrapped a major data center project — at that scale, the RFI log usually tells the real story of what peer review caught too late. Curious whether you're seeing that pattern repeat across projects.",angle:"Recently completed signal — frame around what the last project's RFI volume revealed. Turner carries project risk as a GC, so missed coordination errors directly hit their margin.",avoid:"Don't lead with AI or software. Turner's innovation team has seen every pitch. Lead with the project pain, not the product.",subject:"Turner's data center delivery — what the RFI log said"},
+  'Thomas Woeste, LEED AP, CPC':{hook:"Running construction execution on projects of Turner's complexity, the gap between what peer review catches and what shows up as a change order in the field is a number I'd want to quantify. Have you been tracking that on recent projects?",angle:"VP Construction at a GC — focus on bid accuracy, project risk, and the cost of coordination errors that peer review missed.",avoid:"Don't pitch workflow automation. This persona owns field execution. Lead with cost and risk, not efficiency.",subject:"The cost of coordination errors Turner is carrying"},
+  'Kevin Wanner':{hook:"VDC teams at GCs like Turner are usually the ones who know exactly where the coordination gaps are before anyone else does — but getting that signal into the peer review process before it becomes an RFI is still mostly manual. Is that true for your team?",angle:"VDC/BIM persona — technically fluent. Lead with the technical problem, not the business case. Champion-first target.",avoid:"Don't use executive-level framing. This person wants to see technical depth and workflow integration.",subject:"VDC signal — peer review gap at Turner"},
+  'Anthony M. Manganiello, P.E.':{hook:"Managing design and construction at Hines' scale, the change order volume on any given project is usually a direct function of what peer review caught — and what it didn't. I'd be curious what your current process looks like and where you see the most exposure.",angle:"Managing Director at a major developer — peer review confirmed. Lead with the cost of what peer review misses. Frame as augmenting their existing process.",avoid:"Don't question their existing peer review process — they confirmed they do it. Position as making it faster and more comprehensive.",subject:"What Hines' peer review is missing on DD/CD projects"},
+  'Benjamin Rodney':{hook:"On large mixed-use and office projects at Hines' scale, the construction phase surprises that cost the most usually trace back to coordination gaps that were present in the CDs — just not caught. How much of your change order volume would you attribute to that?",angle:"Construction MD at a developer — focus on the downstream cost of upstream design errors. Anchor to how comprehensive and fast their current review actually is.",avoid:"Don't lead with AI. Lead with the problem — change orders from coordination errors.",subject:"Construction surprises that trace back to CD coordination gaps"},
+  'Shervin Radfar':{hook:"Design and construction managers at firms like Hines are usually closest to the gap between what gets reviewed in peer review and what shows up as a field problem. I'd be curious whether your team has a way to quantify what peer review is catching — and what it's missing.",angle:"Manager level — champion target. Lead with the measurement problem: how do you know if peer review is working?",avoid:"Don't use executive framing. This person wants to talk about the process, not the business case.",subject:"Measuring peer review effectiveness at Hines"},
+  'Ian Campbell, CPO':{hook:"Procurement at Tishman Speyer's scale means design coordination errors that slip through peer review get priced into the bid — or worse, show up as change orders after award. How is your team managing that exposure on active office and mixed-use projects?",angle:"Head of Procurement — focus on bid accuracy and the pricing risk from undetected coordination errors. Autodesk ACC signals digital maturity.",avoid:"Don't lead with the software. Lead with the financial exposure from coordination errors in the bid.",subject:"Design coordination exposure in Tishman's bid process"},
+  'Eleftherios Pittas':{hook:"Senior directors on the design and construction side at firms like Tishman usually have the best read on where peer review is catching issues versus where things are slipping through to the field. What does that gap look like on your current projects?",angle:"Senior Director, Design and Construction — peer review confirmed, Autodesk ACC user. Lead with the gap between what review catches and what becomes a field problem.",avoid:"Don't use generic AI framing. This persona has heard every AI pitch. Lead with the specific problem.",subject:"The peer review gap on Tishman's active projects"},
+  'Jonathan Flaherty':{hook:"Sustainability and building technology innovation at Tishman Speyer puts you at the intersection of design quality and technology adoption — I'd be curious whether AI-powered document review is on your radar as a way to catch coordination issues that manual peer review misses.",angle:"Innovation/sustainability lead — open to new technology. Lead with the innovation angle and the technology gap in peer review.",avoid:"Don't focus purely on cost. This persona thinks about quality and innovation.",subject:"AI-powered peer review for Tishman's project pipeline"},
+  'JT Richardson':{hook:"Asset management on the construction side at investment firms like Peachtree usually means you're the one absorbing the cost of change orders that could have been caught earlier. How are you managing design coordination risk across your hospitality and multifamily portfolio?",angle:"Director of Asset Management at a REIF — focus on portfolio-level risk and the cost of change orders across multiple projects.",avoid:"Don't lead with process. Lead with the financial impact of design errors on portfolio returns.",subject:"Design coordination risk across Peachtree's portfolio"},
+  'Ankit Patel':{hook:"Pre-development directors at investment firms are usually the ones who set the tone for how much design risk gets carried into construction. How is Peachtree thinking about peer review quality on your current hospitality and multifamily pipeline?",angle:"Director of Pre-Development — closest to the design phase. Lead with the upstream intervention angle.",avoid:"Don't lead with completed projects. This persona is focused on what's coming.",subject:"Pre-development design risk at Peachtree"},
+  'David Pearson':{hook:"EVP-level oversight of affordable development at Related means you're managing design and construction complexity at a scale where coordination errors are expensive. How does your team approach peer review on projects of that complexity?",angle:"EVP at a major developer — peer review status unknown. Qualify before pitching. Lead with scale and complexity.",avoid:"Don't assume they have a peer review process — it's unknown. Qualify first.",subject:"Peer review on Related's affordable development projects"},
+  'Dawood Rouben':{hook:"VP-level real estate development at Related means you're close enough to the design process to know where coordination gaps between disciplines create the most downstream cost. What does peer review look like on your current projects?",angle:"VP of Real Estate Development — unknown peer review status. Lead with discovery: find out if they have a formal process.",avoid:"Don't pitch the product before confirming peer review status. This is a qualification call first.",subject:"Design coordination on Related's current development pipeline"},
+  'Philippe Visser':{hook:"Office development at Related's scale means you're coordinating across complex tenant requirements, structural systems, and MEP disciplines — the cost of getting that wrong in CDs shows up as change orders that compress your margin. How are you managing that exposure?",angle:"President of Office Development — senior enough to be an economic buyer. Lead with margin compression from change orders.",avoid:"Don't use AI-forward language. This is a business outcomes conversation.",subject:"Change order exposure on Related's office development pipeline"}
+};
+
+function tierClass(t){if(!t)return'tier3';if(t.includes('1'))return'tier1';if(t.includes('2'))return'tier2';return'tier3';}
+function segClass(s){if(!s)return'';if(s.includes('Developer'))return'Developer';if(s.includes('GC')||s.includes('CMAR'))return'GC';if(s.includes('REIF'))return'REIF';if(s.includes('Data Center'))return'DC';return'';}
+function peerClass(v){if(v==='Yes')return'peer-yes';if(v==='No')return'peer-no';return'peer-unknown';}
+function techPillClass(t){const l=t.toLowerCase();if(l.includes('procore'))return'procore';if(l.includes('bluebeam'))return'bluebeam';if(l.includes('autodesk'))return'autodesk';return'';}
+function scoreColor(s){const n=parseFloat(s);if(n>=8)return'tier1';if(n>=6)return'tier2';return'tier3';}
+function contactsForAccount(name){return CONTACTS.filter(c=>c.company_name&&c.company_name.trim().toLowerCase()===name.trim().toLowerCase());}
+function inferPersona(title){if(!title)return'Other';const t=title.toLowerCase();if(t.includes('vdc')||t.includes('bim')||t.includes('innovation'))return'Innovation / VDC';if(t.includes('preconstruction')||t.includes('pre-construction')||t.includes('pre construction'))return'Preconstruction';if(t.includes('procurement'))return'Procurement';if(t.includes('asset management')||t.includes('investments')||t.includes('pre-development'))return'Investment / Asset Mgmt';if(t.includes('sustainability'))return'Sustainability / Innovation';if(t.includes('construction')||t.includes('development'))return'Construction / Development';return'Other';}
+function getSignalType(acc){if(acc.project_status){if(acc.project_status.toLowerCase().includes('pre'))return'pre-construction';if(acc.project_status.toLowerCase().includes('complet'))return'recently-completed';}const i=ACCOUNT_INTEL[acc.company_name];return i?i.signal_type:'no-signal';}
+function getSignalLabel(type){if(type==='pre-construction')return'Pre-Construction';if(type==='recently-completed')return'Recently Completed';return'No Signal';}
+function buildPersonaBreakdown(contacts){const counts={};contacts.forEach(c=>{const p=inferPersona(c.contact_title);counts[p]=(counts[p]||0)+1;});return Object.entries(counts).sort((a,b)=>b[1]-a[1]);}
+function getContactMessaging(contact,acc){
+  if(contact.outreach_hook)return{hook:contact.outreach_hook,angle:contact.message_angle||'',avoid:contact.avoid||'',subject:contact.subject_line||''};
+  if(CONTACT_MESSAGING[contact.contact_name])return CONTACT_MESSAGING[contact.contact_name];
+  const signalType=getSignalType(acc);const seg=acc.segment||'';const peer=acc.peer_review_confirmed||'Unknown';
+  let hook='',angle='',avoid='',subject='';
+  if(signalType==='pre-construction'){hook=`With active projects moving through design development, the cost of coordination errors that slip through peer review shows up as change orders after bid. How is your team managing that exposure on current projects?`;subject=`Design coordination exposure on ${acc.company_name}'s active pipeline`;}
+  else if(signalType==='recently-completed'){hook=`Your team just wrapped a major project — the RFI log usually tells the real story of what peer review caught versus what made it to the field. I'd be curious what that looked like and whether you're seeing the same patterns on your next project.`;subject=`What ${acc.company_name}'s last project RFI log revealed`;}
+  else{hook=`The gap between what peer review catches and what shows up as a field problem is something most construction teams know well. I'd be curious how you're managing that exposure at ${acc.company_name}.`;subject=`Design coordination risk at ${acc.company_name}`;}
+  if(seg.includes('GC')||seg.includes('CMAR')){angle='GC carrying project risk — focus on bid accuracy and the cost of coordination errors. Change orders come out of their margin.';avoid="Don't lead with AI. Lead with project risk and bid accuracy.";}
+  else if(seg.includes('REIF')){angle='Investment firm — focus on portfolio-level derisking and financial impact of change orders on returns.';avoid="Don't pitch process improvement. Pitch financial risk reduction across the portfolio.";}
+  else{angle=`Developer — ${peer==='Yes'?'peer review confirmed, position as making their existing process faster and more comprehensive':'peer review status unknown, qualify this first'}.`;avoid=peer==='Unknown'?"Don't pitch before confirming whether they have a formal peer review process.":"Don't question their existing peer review. Position as augmenting it.";}
+  return{hook,angle,avoid,subject};
+}
+
+async function loadData(){
+  const btn=document.getElementById('refresh-btn');btn.classList.add('spinning');
+  try{
+    const res=await fetch(N8N_API_URL);const data=await res.json();
+    ACCOUNTS=(data.accounts||[]).filter(a=>a.company_name&&a.company_name.trim());
+    CONTACTS=(data.contacts||[]).filter(c=>c.contact_name&&c.contact_name.trim());
+    updateStats();renderCurrentView();
+  }catch(e){document.getElementById('view-accounts').innerHTML=`<div class="error-block">Failed to load data from n8n. Make sure the LightTable workflow is active.<br><br>Error: ${e.message}</div>`;}
+  btn.classList.remove('spinning');
+}
+function updateStats(){
+  document.getElementById('stat-accounts').textContent=ACCOUNTS.length;
+  document.getElementById('stat-contacts').textContent=CONTACTS.length;
+  document.getElementById('stat-peer').textContent=ACCOUNTS.filter(a=>a.peer_review_confirmed==='Yes').length;
+  document.getElementById('stat-tier1').textContent=ACCOUNTS.filter(a=>a.icp_tier==='Tier 1').length;
+}
+function showView(view,btn){document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('#view-accounts,#view-scorecard').forEach(e=>e.style.display='none');document.getElementById(`view-${view}`).style.display='block';if(view==='accounts')renderAccounts();else if(view==='scorecard')renderScorecard();}
+function renderCurrentView(){const activeTab=document.querySelector('.nav-tab.active');const view=activeTab?activeTab.getAttribute('onclick').match(/'(\w+)'/)[1]:'accounts';if(view==='accounts')renderAccounts();else if(view==='scorecard')renderScorecard();}
+
+function renderAccounts(){
+  const el=document.getElementById('view-accounts');
+  if(!ACCOUNTS.length){el.innerHTML='<div class="loading"><div class="loading-spinner"></div><div class="loading-text">Loading accounts...</div></div>';return;}
+  const filters=[{id:'all',label:'All Accounts'},{id:'tier1',label:'Tier 1'},{id:'tier2',label:'Tier 2'},{id:'peer',label:'Peer Review Confirmed'},{id:'developer',label:'Developer'},{id:'gc',label:'GC / CMAR'},{id:'reif',label:'REIF'},{id:'signal',label:'Has Signal'}];
+  let html=`<div class="section-label">Account Readiness — ${ACCOUNTS.length} accounts</div><div class="filter-bar">`;
+  filters.forEach(f=>{html+=`<button class="filter-btn ${f.id===currentFilter?'active':''}" onclick="filterAccounts('${f.id}')">${f.label}</button>`;});
+  html+=`</div><div class="account-grid">`;
+  const sorted=[...ACCOUNTS].sort((a,b)=>parseFloat(b.icp_score||0)-parseFloat(a.icp_score||0));
+  sorted.forEach(acc=>{
+    const tc=tierClass(acc.icp_tier);const contacts=contactsForAccount(acc.company_name);
+    const techTools=acc.tech_stack?acc.tech_stack.split('|').map(t=>t.trim()).filter(Boolean):[];
+    const score=parseFloat(acc.icp_score||0);const signalType=getSignalType(acc);
+    const pb=buildPersonaBreakdown(contacts);const maxPB=pb.length>0?pb[0][1]:1;
+    const show=currentFilter==='all'||(currentFilter==='tier1'&&acc.icp_tier==='Tier 1')||(currentFilter==='tier2'&&acc.icp_tier==='Tier 2')||(currentFilter==='peer'&&acc.peer_review_confirmed==='Yes')||(currentFilter==='developer'&&acc.segment&&acc.segment.includes('Developer'))||(currentFilter==='gc'&&acc.segment&&(acc.segment.includes('GC')||acc.segment.includes('CMAR')))||(currentFilter==='reif'&&acc.segment&&acc.segment.includes('REIF'))||(currentFilter==='signal'&&signalType!=='no-signal');
+    if(!show)return;
+    html+=`<div class="account-card ${tc}" onclick="openDive('${acc.company_name.replace(/'/g,"\\'")}')">
+      <div class="card-top"><div><div class="card-name">${acc.company_name}</div><div class="card-segment">${acc.segment||'—'} · ${acc.hq_location||'—'}</div></div><div class="icp-badge ${tc}">${acc.icp_tier||'—'}</div></div>
+      <div class="score-row"><div><span class="score-num">${acc.icp_score||'—'}</span><span class="score-denom">/10</span></div><div class="score-track"><div class="score-fill ${scoreColor(acc.icp_score)}" style="width:${score*10}%"></div></div></div>
+      <div class="card-pills"><span class="pill ${peerClass(acc.peer_review_confirmed)}">Peer Review: ${acc.peer_review_confirmed||'Unknown'}</span><span class="signal-tag ${signalType}">${getSignalLabel(signalType)}</span></div>
+      <div class="card-pills">${techTools.slice(0,3).map(t=>`<span class="pill ${techPillClass(t)}">${t}</span>`).join('')}</div>
+      ${pb.length>0?`<div class="persona-bars">${pb.slice(0,3).map(([p,n])=>{const pct=Math.round((n/contacts.length)*100);const bw=Math.round((n/maxPB)*100);return`<div class="pb-row"><span class="pb-label">${p}</span><div class="pb-track"><div class="pb-fill" style="width:${bw}%"></div></div><span class="pb-pct">${pct}%</span></div>`;}).join('')}</div>`:''}
+      <div class="card-meta"><div class="card-meta-item"><div class="card-meta-val">${acc.projects_per_year?acc.projects_per_year.replace("'",""):'—'}</div><div class="card-meta-lbl">Projects/yr</div></div><div class="card-meta-item"><div class="card-meta-val">${contacts.length}</div><div class="card-meta-lbl">Contacts</div></div><div class="card-meta-item"><div class="card-meta-val">${acc.project_types?acc.project_types.split('|').length:'—'}</div><div class="card-meta-lbl">Project Types</div></div></div>
+    </div>`;
+  });
+  html+=`</div>`;el.innerHTML=html;
+}
+function filterAccounts(f){currentFilter=f;renderAccounts();}
+
+function openDive(name){
+  const acc=ACCOUNTS.find(a=>a.company_name===name);if(!acc)return;
+  const contacts=contactsForAccount(name);const tc=tierClass(acc.icp_tier);
+  const techTools=acc.tech_stack?acc.tech_stack.split('|').map(t=>t.trim()).filter(Boolean):[];
+  const projectTypes=acc.project_types?acc.project_types.split('|').map(t=>t.trim()).filter(Boolean):[];
+  const peerVal=acc.peer_review_confirmed||'Unknown';const peerCls=peerVal==='Yes'?'yes':peerVal==='No'?'no':'unknown';
+  const peerMsg=peerVal==='Yes'?'Confirmed — this account conducts formal internal peer review. Strong ICP signal.':peerVal==='No'?'No peer review process. Potential ICP disqualifier — flag before intro call.':'Peer review status unknown. Must confirm on first call before qualifying further.';
+  const signalType=getSignalType(acc);const intel=ACCOUNT_INTEL[acc.company_name]||{};
+  const description=acc.company_description||intel.description||'';
+  // Signal headline: use Clay's project_status text, strip the label prefix for display
+  const rawSignal = acc.project_status || '';
+  const strippedSignal = rawSignal.replace(/^(Pre-Construction:|Recently Completed:|No Signal)/i,'').trim();
+  const signalHeadline = acc.recent_signal || acc.signal_headline || (strippedSignal.length>10?strippedSignal:null) || intel.signal_headline || 'No signal detected';
+  const signalDetail = (!acc.recent_signal && !acc.signal_headline && strippedSignal.length<=10) ? (intel.signal_detail||'') : '';
+  const pb=buildPersonaBreakdown(contacts);const maxPB=pb.length>0?pb[0][1]:1;
+  document.querySelectorAll('#view-accounts,#view-scorecard').forEach(e=>e.style.display='none');
+  const el=document.getElementById('view-accounts');el.style.display='block';
+
+  let html=`<button class="back-btn" onclick="renderAccounts()">Back to All Accounts</button>
+  <div class="dive-header">
+    <div><div class="section-label" style="margin-bottom:8px">Account Deep Dive</div><div class="dive-title">${acc.company_name}</div><div class="dive-sub">${acc.segment||'—'} · ${acc.hq_location||'—'}</div></div>
+    <div class="dive-stats">
+      <div class="dive-stat"><div class="dive-stat-val">${acc.icp_score||'—'}<span style="font-size:14px;color:var(--text-muted)">/10</span></div><div class="dive-stat-lbl">ICP Score</div></div>
+      <div class="dive-stat"><div class="dive-stat-val">${contacts.length}</div><div class="dive-stat-lbl">Contacts</div></div>
+      <div class="dive-stat"><div class="dive-stat-val">${acc.projects_per_year?acc.projects_per_year.replace("'",""):'—'}</div><div class="dive-stat-lbl">Projects/yr</div></div>
+    </div>
+  </div>
+  <div class="section-label">Company Intelligence</div>
+  <div class="dive-grid" style="margin-bottom:32px">
+    <div class="dive-card" style="grid-column:span 2"><div class="dive-card-title">Company Overview</div><div style="font-size:12px;color:var(--text-mid);line-height:1.8">${description||'<span style="color:var(--text-muted)">No description — add company_description field to Clay to populate this automatically.</span>'}</div></div>
+    <div class="dive-card"><div class="dive-card-title">Project Signal</div><div class="signal-block ${signalType}"><div class="signal-type-label">${getSignalLabel(signalType)}</div><div class="signal-headline">${signalHeadline}</div>${signalDetail?`<div class="signal-detail" style="margin-top:6px">${signalDetail}</div>`:''}</div></div>
+    <div class="dive-card"><div class="dive-card-title">Qualification</div><div class="peer-block ${peerCls}" style="margin-bottom:12px"><div class="peer-label">Peer Review: ${peerVal}</div><div class="peer-headline">${peerMsg}</div></div><div class="info-row"><span class="info-label">Segment</span><span class="info-value"><span class="seg-tag ${segClass(acc.segment)}">${acc.segment||'—'}</span></span></div><div class="info-row"><span class="info-label">ICP Tier</span><span class="info-value"><span class="icp-badge ${tc}">${acc.icp_tier||'—'}</span></span></div><div class="info-row"><span class="info-label">Phase</span><span class="info-value">${acc.current_phase||'—'}</span></div><div class="info-row"><span class="info-label">Avg Sq Ft</span><span class="info-value">${acc.avg_project_sqft?Number(acc.avg_project_sqft).toLocaleString()+' sq ft':'—'}</span></div></div>
+    <div class="dive-card"><div class="dive-card-title">Tech Stack</div><div class="tech-pills" style="margin-bottom:12px">${techTools.length?techTools.map(t=>`<span class="tech-pill ${techPillClass(t)}">${t}</span>`).join(''):'<span style="font-size:11px;color:var(--text-muted)">No tech stack data</span>'}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill ${acc.procore_user==='Yes'?'peer-yes':acc.procore_user==='No'?'peer-no':'peer-unknown'}">Procore: ${acc.procore_user||'Unknown'}</span><span class="pill ${acc.bluebeam_user==='Yes'?'peer-yes':acc.bluebeam_user==='No'?'peer-no':'peer-unknown'}">Bluebeam: ${acc.bluebeam_user||'Unknown'}</span><span class="pill ${acc.autodesk_acc_user==='Yes'?'peer-yes':acc.autodesk_acc_user==='No'?'peer-no':'peer-unknown'}">Autodesk: ${acc.autodesk_acc_user||'Unknown'}</span></div></div>
+    <div class="dive-card"><div class="dive-card-title">Project Types & Notes</div><div class="tech-pills" style="margin-bottom:10px">${projectTypes.length?projectTypes.map(t=>`<span class="tech-pill">${t.trim()}</span>`).join(''):'<span style="font-size:11px;color:var(--text-muted)">—</span>'}</div>${acc.notes?`<div style="font-size:11px;color:var(--text-mid);line-height:1.7;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${acc.notes}</div>`:''}</div>
+  </div>
+  ${pb.length>0?`<div class="section-label">Contact Persona Breakdown</div><div class="dive-card" style="margin-bottom:32px"><div class="fn-bars">${pb.map(([p,n])=>{const pct=Math.round((n/contacts.length)*100);const bw=Math.round((n/maxPB)*100);return`<div class="fn-row"><span class="fn-label">${p}</span><div class="fn-track"><div class="fn-fill" style="width:${bw}%"></div></div><span class="fn-pct">${pct}%</span></div>`;}).join('')}</div></div>`:''}
+  <div class="section-label">Contacts & Outreach — ${contacts.length} mapped</div>
+  <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;line-height:1.7">Click any contact row to expand signal-driven outreach messaging for that persona.</p>`;
+
+  if(contacts.length){
+    contacts.forEach((c,i)=>{
+      const liLink=c.contact_linkedin?`<a href="${c.contact_linkedin}" target="_blank" class="contact-link" title="LinkedIn">↗</a>`:'';
+      const emailLink=c.contact_email?`<a href="mailto:${c.contact_email}">${c.contact_email}</a>`:'—';
+      const msg=getContactMessaging(c,acc);const persona=inferPersona(c.contact_title);
+      const msgId=`msg-${i}-${acc.company_name.replace(/\W/g,'_')}`;
+
+      // Build Gmail draft URL from account-level email fields
+      const gmailSubject = acc.email_subject || msg.subject || '';
+      const gmailBody = acc.email_body || '';
+      const gmailTo = c.contact_email || '';
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(gmailTo)}&su=${encodeURIComponent(gmailSubject)}&body=${encodeURIComponent(gmailBody)}`;
+      const hasEmail = !!c.contact_email;
+
+      html+=`<div class="contact-block">
+        <div class="contact-row" onclick="toggleMsg('${msgId}')">
+          <div class="contact-num">${i+1}</div>
+          <div class="contact-name-cell">${c.contact_name}${liLink}</div>
+          <div class="contact-title-cell">${c.contact_title||'—'}</div>
+          <div class="contact-email-cell">${emailLink}</div>
+          <div class="contact-loc-cell">${c.location?c.location.replace(', United States',''):'—'}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="toggle-msg-btn" id="btn-${msgId}">Messaging</button>
+            ${hasEmail?`<a href="${gmailUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:3px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;font-weight:600;background:var(--lt-red-light);color:var(--lt-red);border:1px solid var(--lt-red-mid);text-decoration:none;white-space:nowrap;transition:all .12s" onmouseover="this.style.background='var(--lt-red)';this.style.color='white'" onmouseout="this.style.background='var(--lt-red-light)';this.style.color='var(--lt-red)'">✉ Draft in Gmail</a>`:''}
+          </div>
+        </div>
+        <div class="messaging-panel" id="${msgId}">
+          <div class="msg-header">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)">Persona:</span>
+            <span class="msg-persona-label">${persona}</span>
+            <span class="signal-tag ${signalType}">${getSignalLabel(signalType)}</span>
+            ${gmailSubject?`<div class="msg-subject-line"><span class="msg-subject-lbl">Subject:</span>${gmailSubject}</div>`:''}
+          </div>
+          ${gmailBody?`<div style="background:var(--white);border:1px solid var(--border);border-radius:4px;padding:14px 16px;margin-bottom:14px;font-size:11px;color:var(--text-mid);line-height:1.8;white-space:pre-wrap">${gmailBody}</div>`:''}
+          <div class="msg-grid">
+            <div><div class="msg-col-label">Opening Hook</div><div class="msg-hook">"${msg.hook}"</div></div>
+            <div><div class="msg-col-label">Message Angle</div><div class="msg-angle">${msg.angle}</div></div>
+            <div><div class="msg-col-label">Avoid</div><div class="msg-avoid">${msg.avoid}</div></div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }else{html+=`<div style="background:var(--white);border:1px solid var(--border);border-radius:6px;padding:20px;font-size:12px;color:var(--text-muted)">No contacts mapped yet. Run People Search in Clay to populate.</div>`;}
+  el.innerHTML=html;
+}
+
+window.toggleMsg=function(id){const panel=document.getElementById(id);const btn=document.getElementById('btn-'+id);if(!panel)return;const isOpen=panel.classList.contains('open');panel.classList.toggle('open');if(btn)btn.textContent=isOpen?'Messaging':'Hide Messaging';};
+
+function renderScorecard(){
+  const el=document.getElementById('view-scorecard');
+  if(!ACCOUNTS.length){el.innerHTML='<div class="loading"><div class="loading-spinner"></div><div class="loading-text">Loading...</div></div>';return;}
+  const sorted=[...ACCOUNTS].sort((a,b)=>{const key=scorecardSort.key;const va=key==='icp_score'||key==='projects_per_year'?parseFloat((a[key]||'0').replace("'","")):(a[key]||'').toLowerCase();const vb=key==='icp_score'||key==='projects_per_year'?parseFloat((b[key]||'0').replace("'","")):(b[key]||'').toLowerCase();if(va<vb)return scorecardSort.dir;if(va>vb)return-scorecardSort.dir;return 0;});
+  function th(label,key){const active=scorecardSort.key===key;const arrow=active?(scorecardSort.dir===-1?' ↓':' ↑'):'';return`<th class="${active?'sorted':''}" onclick="setScorecardSort('${key}')">${label}${arrow}</th>`;}
+  function miniBar(score,cls){return`<div style="display:flex;align-items:center;gap:7px"><div style="width:72px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0"><div style="width:${parseFloat(score||0)*10}%;height:100%;border-radius:3px;background:var(--${cls==='tier1'?'tier1':cls==='tier2'?'tier2':'tier3'})"></div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text-mid)">${score||'—'}</span></div>`;}
+  let html=`<div class="section-label">Account Scorecard</div><table class="score-table"><thead><tr><th>#</th>${th('Account','company_name')}${th('Segment','segment')}${th('ICP Score','icp_score')}${th('Tier','icp_tier')}<th>Peer Review</th><th>Signal</th><th>Phase</th>${th('Projects/yr','projects_per_year')}<th>Contacts</th><th>Status</th></tr></thead><tbody>`;
+  sorted.forEach((acc,i)=>{
+    const tc=tierClass(acc.icp_tier);const contacts=contactsForAccount(acc.company_name);
+    const accentColor=tc==='tier1'?'var(--tier1)':tc==='tier2'?'var(--tier2)':'var(--tier3)';const signalType=getSignalType(acc);
+    html+=`<tr onclick="openDiveFromScorecard('${acc.company_name.replace(/'/g,"\\'")}')">
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-faint)">${i+1}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:3px;height:30px;border-radius:2px;background:${accentColor};flex-shrink:0"></div><div><div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--text)">${acc.company_name}</div><div style="font-size:9px;color:var(--text-muted);margin-top:1px">${acc.hq_location||'—'}</div></div></div></td>
+      <td><span class="seg-tag ${segClass(acc.segment)}">${acc.segment||'—'}</span></td>
+      <td>${miniBar(acc.icp_score,tc)}</td>
+      <td><span class="icp-badge ${tc}">${acc.icp_tier||'—'}</span></td>
+      <td><span class="pill ${peerClass(acc.peer_review_confirmed)}">${acc.peer_review_confirmed||'Unknown'}</span></td>
+      <td><span class="signal-tag ${signalType}" style="font-size:8px">${getSignalLabel(signalType)}</span></td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:10px">${acc.current_phase||'—'}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${acc.projects_per_year?acc.projects_per_year.replace("'",""):'—'}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center">${contacts.length}</td>
+      <td><span style="display:inline-flex;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.04em;background:var(--bg);border:1px solid var(--border-dark);color:var(--text-muted)">${acc.sequence_status||'Not Started'}</span></td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;el.innerHTML=html;
+}
+window.setScorecardSort=function(key){if(scorecardSort.key===key)scorecardSort.dir*=-1;else scorecardSort={key,dir:-1};renderScorecard();};
+function openDiveFromScorecard(name){document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.nav-tab')[0].classList.add('active');document.getElementById('view-scorecard').style.display='none';document.getElementById('view-accounts').style.display='block';openDive(name);}
+
+document.getElementById('view-accounts').innerHTML='<div class="loading"><div class="loading-spinner"></div><div class="loading-text">Loading from n8n...</div></div>';
+loadData();
+</script>
+</body>
+</html>
